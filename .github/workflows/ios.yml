@@ -31,10 +31,11 @@ jobs:
       - name: Package IPA
         run: |
           cd ios/App
-          mkdir -p build/output
-          cp -r build/App.xcarchive/Products/Applications/*.app build/output/ || true
-          cd build/output
-          zip -r ../../ios-app-unsigned.ipa *.app || true
+          mkdir -p build/ipa/Payload
+          cp -r build/App.xcarchive/Products/Applications/*.app build/ipa/Payload/
+          cd build/ipa
+          zip -r ../../ios-app-unsigned.ipa Payload
+          cd ../..
 
       - uses: actions/upload-artifact@v4
         with:
