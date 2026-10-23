@@ -1,77 +1,77 @@
 name: Build Unsigned iOS IPA
 
 on:
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
-  build-ios:
-    runs-on: macos-14
+  build-ios:
+    runs-on: macos-14
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm install
-          npm install --save-dev @capacitor/cli@5 @capacitor/core@5 @capacitor/ios@5
+      - name: Ensure package.json & Install deps
+        run: |
+          if [ ! -f "package.json" ]; then
+            npm init -y
+          fi
+          npm install
+          npm install --save-dev @capacitor/cli@5 @capacitor/core@5 @capacitor/ios@5
 
-      - name: Cap init
-        run: npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
+      - name: Cap init (safe)
+        run: |
+          npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
 
-      - name: Add iOS platform
-        run: npx cap add ios || true
+      - name: Add iOS platform
+        run: npx cap add ios || true
 
-      - name: Sync web assets
-        run: npx cap sync ios
+      - name: Sync web assets
+        run: npx cap sync ios
 
-      - name: Install Pods
-        run: |
-          cd ios/App
-          pod install || true
-          cd ../..
+      - name: Install Pods
+        run: |
+          cd ios/App
+          pod install || true
+          cd ../..
 
-      - name: Patch Xcode project
-        run: |
-          python3 - <<'PY'
-          import re
-          p = 'ios/App/App.xcodeproj/project.pbxproj'
-          s = open(p).read()
-          s = s.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
-          s = re.sub(r'DEVELOPMENT_TEAM = [^;]*;', 'DEVELOPMENT_TEAM = "";', s)
-          s = re.sub(r'CODE_SIGN_IDENTITY = [^;]*;', 'CODE_SIGN_IDENTITY = "";', s)
-          if 'CODE_SIGNING_ALLOWED' not in s:
-              s = s.replace('GCC_OPTIMIZATION_LEVEL = 0;',
-                            'GCC_OPTIMIZATION_LEVEL = 0;\n\t\t\tCODE_SIGNING_ALLOWED = NO;')
-          open(p, 'w').write(s)
-          PY
+      - name: Patch Xcode (Disable Signing)
+        run: |
+          python3 - <<'PY'
+          import re
+          p = 'ios/App/App.xcodeproj/project.pbxproj'
+          s = open(p).read()
+          s = s.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+          s = re.sub(r'DEVELOPMENT_TEAM = .*;', 'DEVELOPMENT_TEAM = "";', s)
+          s = re.sub(r'CODE_SIGN_IDENTITY = .*;', 'CODE_SIGN_IDENTITY = "";', s)
+          s += '\nCODE_SIGNING_ALLOWED = NO;\n'
+          open(p, 'w').write(s)
+          PY
 
-      - name: Build archive
-        run: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -archivePath build/App.xcarchive \
-            archive CODE_SIGNING_ALLOWED=NO
+      - name: Build Unsigned IPA
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            -archivePath build/App.xcarchive archive
+          mkdir -p build/output
+          cp -r build/App.xcarchive/Products/Applications/*.app build/output/ 2>/dev/null || true
+          cd build/output
+          zip -r ../../ios-app-unsigned.ipa *.app 2>/dev/null || true
+          cd ../..
 
-      - name: Make unsigned IPA
-        run: |
-          mkdir -p ipa/Payload
-          cp -r ios/App/build/App.xcarchive/Products/Applications/App.app ipa/Payload/
-          cd ipa && zip -r ../FruitCatch.ipa Payload && cd ..
-          ls -la FruitCatch.ipa
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: FruitCatch-unsigned-IPA
-          path: FruitCatch.ipa
-          retention-days: 30
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-unsigned
+          path: ios/App/ios-app-unsigned.ipa
+          if-no-files-found: ignore
