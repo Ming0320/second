@@ -8,11 +8,11 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - run: npm install
       - run: npm install @capacitor/cli@5 @capacitor/core@5 @capacitor/ios@5
@@ -37,7 +37,7 @@ jobs:
           zip -r ../../ios-app-unsigned.ipa Payload
           cd ../..
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ios-app-unsigned
           path: ios/App/ios-app-unsigned.ipa
