@@ -2,13 +2,14 @@ name: Build Unsigned iOS IPA
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
   build-ios:
     runs-on: macos-14
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,9 +18,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Ensure package.json & Install deps
+      - name: Ensure package.json and install deps
         run: |
           if [ ! -f "package.json" ]; then
             npm init -y
@@ -27,49 +27,44 @@ jobs:
           npm install
           npm install --save-dev @capacitor/cli@5 @capacitor/core@5 @capacitor/ios@5
 
-      - name: Cap init (safe)
-        run: |
-          npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
+      - name: Cap init
+        run: npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
 
-      - name: Add iOS platform
+      - name: Add iOS
         run: npx cap add ios || true
 
-      - name: Sync web assets
+      - name: Sync
         run: npx cap sync ios
 
-      - name: Install Pods
+      - name: Pods
         run: |
           cd ios/App
           pod install || true
           cd ../..
 
-      - name: Patch Xcode (Disable Signing)
+      - name: Disable signing
         run: |
           python3 - <<'PY'
-          import re
           p = 'ios/App/App.xcodeproj/project.pbxproj'
           s = open(p).read()
           s = s.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
-          s = re.sub(r'DEVELOPMENT_TEAM = .*;', 'DEVELOPMENT_TEAM = "";', s)
-          s = re.sub(r'CODE_SIGN_IDENTITY = .*;', 'CODE_SIGN_IDENTITY = "";', s)
+          s = __import__('re').sub(r'DEVELOPMENT_TEAM = .*;', 'DEVELOPMENT_TEAM = "";', s)
+          s = __import__('re').sub(r'CODE_SIGN_IDENTITY = .*;', 'CODE_SIGN_IDENTITY = "";', s)
           s += '\nCODE_SIGNING_ALLOWED = NO;\n'
           open(p, 'w').write(s)
           PY
 
-      - name: Build Unsigned IPA
+      - name: Build archive
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
-            -scheme App -configuration Release \
-            CODE_SIGNING_ALLOWED=NO \
-            -archivePath build/App.xcarchive archive
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release CODE_SIGNING_ALLOWED=NO -archivePath build/App.xcarchive archive
           mkdir -p build/output
-          cp -r build/App.xcarchive/Products/Applications/*.app build/output/ 2>/dev/null || true
+          cp -r build/App.xcarchive/Products/Applications/*.app build/output/ || true
           cd build/output
-          zip -r ../../ios-app-unsigned.ipa *.app 2>/dev/null || true
+          zip -r ../../ios-app-unsigned.ipa *.app || true
           cd ../..
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-unsigned
