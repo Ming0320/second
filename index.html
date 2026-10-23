@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>FruitCatch</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#87ceeb;overflow:hidden;font-family:sans-serif}
+canvas{display:block;touch-action:none}
+#ui{position:absolute;top:0;left:0;width:100%;padding:12px;color:#fff;text-shadow:0 1px 2px #0006;pointer-events:none;font-size:18px}
+</style>
+</head>
+<body>
+<div id="ui"><div id="s">Score:0</div><div id="l">Life:3</div></div>
+<canvas id="g"></canvas>
+<script>
+const c=document.getElementById('g'),x=c.getContext('2d');
+let W,H;basket={w:90,h:30,x:0,y:0};
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;basket.x=W/2-45;basket.y=H-80}
+rs();addEventListener('resize',rs);
+let fruits=[],score=0,life=3,last=0;
+const s=document.getElementById('s'),l=document.getElementById('l');
+function spawn(){let r=18+Math.random()*14;fruits.push({x:r+Math.random()*(W-r*2),y:-r,r,vy:2+Math.random()*2.5,c:`hsl(${Math.random()*360},80%,60%)`})}
+function loop(t){
+x.clearRect(0,0,W,H);basket.y=H-80;
+if(t-last>700){spawn();last=t}
+x.fillStyle='#d2691e';x.fillRect(basket.x,basket.y,basket.w,basket.h);
+x.fillStyle='#8b4513';x.fillRect(basket.x,basket.y,basket.w,6);
+for(let i=fruits.length-1;i>=0;i--){let f=fruits[i];f.y+=f.vy;
+x.beginPath();x.arc(f.x,f.y,f.r,0,7);x.fillStyle=f.c;x.fill();
+if(f.y+f.r>=basket.y&&f.y-f.r<=basket.y+basket.h&&f.x>=basket.x&&f.x<=basket.x+basket.w){score++;fruits.splice(i,1);upd();continue}
+if(f.y-f.r>H){life--;fruits.splice(i,1);upd();if(life<=0){alert('Game Over Score:'+score);score=0;life=3;fruits=[];upd()}}}
+requestAnimationFrame(loop)}
+function upd(){s.textContent='Score:'+score;l.textContent='Life:'+life}
+function mv(cx){basket.x=Math.max(0,Math.min(W-basket.w,cx-basket.w/2))}
+c.addEventListener('touchmove',e=>{e.preventDefault();mv(e.touches[0].clientX)},{passive:false});
+c.addEventListener('mousemove',e=>mv(e.clientX));
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
