@@ -1,47 +1,21 @@
 name: Build Unsigned iOS IPA
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
+on: [push, workflow_dispatch]
 jobs:
   build-ios:
     runs-on: macos-14
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install deps
-        run: |
+      - run: |
           if [ ! -f "package.json" ]; then npm init -y; fi
           npm install
           npm install --save-dev @capacitor/cli@5 @capacitor/core@5 @capacitor/ios@5
-
-      - name: Cap init
-        run: npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
-
-      - name: Add iOS
-        run: npx cap add ios || true
-
-      - name: Sync
-        run: npx cap sync ios
-
-      - name: Pods
-        run: |
-          cd ios/App
-          pod install || true
-          cd ../..
-
-      - name: Disable signing
-        run: |
+          npx cap init FruitCatch com.ming.fruitcatch --web-dir public || true
+          npx cap add ios || true
+          npx cap sync ios
+          cd ios/App && pod install || true && cd ../..
           python3 - <<'PY'
           p='ios/App/App.xcodeproj/project.pbxproj'
           s=open(p).read()
@@ -52,19 +26,11 @@ jobs:
           s=s+'\nCODE_SIGNING_ALLOWED = NO;\n'
           open(p,'w').write(s)
           PY
-
-      - name: Build
-        run: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release CODE_SIGNING_ALLOWED=NO -archivePath build/App.xcarchive archive
+          cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release CODE_SIGNING_ALLOWED=NO -archivePath build/App.xcarchive archive
           mkdir -p build/output
           cp -r build/App.xcarchive/Products/Applications/*.app build/output/ || true
-          cd build/output
-          zip -r ../../ios-app-unsigned.ipa *.app || true
-          cd ../..
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
+          cd build/output && zip -r ../../ios-app-unsigned.ipa *.app || true
+      - uses: actions/upload-artifact@v4
         with:
           name: ios-app-unsigned
           path: ios/App/ios-app-unsigned.ipa
