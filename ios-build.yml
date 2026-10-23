@@ -1,0 +1,40 @@
+name: unsigned-ipa
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm install
+      - run: npx cap add ios || true
+      - run: npx cap sync ios
+      - run: cd ios/App && pod install || true && cd ../..
+      - run: |
+          python3 - <<'PY'
+          p='ios/App/App.xcodeproj/project.pbxproj'
+          s=open(p).read()
+          s=s.replace('CODE_SIGN_STYLE = Automatic;','CODE_SIGN_STYLE = Manual;')
+          s=s.replace('DEVELOPMENT_TEAM = 1234567890;','DEVELOPMENT_TEAM = "";')
+          s=s.replace('CODE_SIGN_IDENTITY = "Apple Development";','CODE_SIGN_IDENTITY = "";')
+          if 'CODE_SIGNING_ALLOWED' not in s:
+              s=s.replace('GCC_OPTIMIZATION_LEVEL = 0;','GCC_OPTIMIZATION_LEVEL = 0;\n\t\t\tCODE_SIGNING_ALLOWED = NO;')
+          open(p,'w').write(s)
+          PY
+      - run: |
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+          -configuration Release -archivePath build/App.xcarchive \
+          archive CODE_SIGNING_ALLOWED=NO
+      - run: |
+          mkdir -p ipa/Payload
+          cp -r build/App.xcarchive/Products/Applications/App.app ipa/Payload/
+          cd ipa && zip -r ../FruitCatch.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FruitCatch-unsigned
+          path: FruitCatch.ipa
+          retention-days: 30
