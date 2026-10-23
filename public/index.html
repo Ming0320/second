@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>接水果</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(180deg,#87ceeb,#e0f7fa);overflow:hidden;font-family:sans-serif}
+canvas{display:block;touch-action:none}
+#ui{position:absolute;top:0;left:0;width:100%;padding:14px 18px;color:#fff;font-size:20px;font-weight:bold;display:flex;justify-content:space-between;text-shadow:0 1px 3px #0006}
+#start{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.7);color:#fff;padding:30px 40px;border-radius:16px;text-align:center;font-size:22px}
+#start button{margin-top:16px;padding:12px 32px;font-size:18px;border:none;border-radius:8px;background:#ff9800;color:#fff}
+</style>
+</head>
+<body>
+<div id="ui"><div id="s">🍎 0</div><div id="l">❤️ 3</div></div>
+<div id="start"><div>🍎 接水果 🍎</div><button onclick="start()">开始游戏</button></div>
+<canvas id="g"></canvas>
+<script>
+const c=document.getElementById('g'),x=c.getContext('2d');
+let W,H,basket={w:100,h:32,x:0,y:0},fruits=[],score=0,life=3,last=0,running=false;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;basket.x=W/2-50;basket.y=H-90}
+rs();addEventListener('resize',rs);
+const s=document.getElementById('s'),l=document.getElementById('l'),startDiv=document.getElementById('start');
+function start(){running=true;startDiv.style.display='none';score=0;life=3;fruits=[];upd();requestAnimationFrame(loop)}
+function spawn(){let r=20+Math.random()*16;fruits.push({x:r+Math.random()*(W-r*2),y:-r,r,vy:2.5+Math.random()*2.5,c:`hsl(${Math.random()*360},85%,60%)`})}
+function loop(t){
+if(!running)return;
+x.clearRect(0,0,W,H);
+if(t-last>600){spawn();last=t}
+x.fillStyle='#c47e3e';
+if(x.roundRect){x.beginPath();x.roundRect(basket.x,basket.y,basket.w,basket.h,8);x.fill();}else{x.fillRect(basket.x,basket.y,basket.w,basket.h);}
+x.fillStyle='#8b4513';x.fillRect(basket.x+10,basket.y+basket.h-8,basket.w-20,8);
+for(let i=fruits.length-1;i>=0;i--){let f=fruits[i];f.y+=f.vy;
+x.beginPath();x.arc(f.x,f.y,f.r,0,7);x.fillStyle=f.c;x.fill();
+if(f.y+f.r>=basket.y&&f.y-f.r<=basket.y+basket.h&&f.x>=basket.x&&f.x<=basket.x+basket.w){score++;fruits.splice(i,1);upd();continue}
+if(f.y-f.r>H){life--;fruits.splice(i,1);upd();if(life<=0){running=false;alert('游戏结束！得分：'+score);startDiv.style.display='block';startDiv.querySelector('div').textContent='🍎 得分：'+score+' 🍎'}}}
+requestAnimationFrame(loop)}
+function upd(){s.textContent='🍎 '+score;l.textContent='❤️ '+life}
+function mv(cx){basket.x=Math.max(0,Math.min(W-basket.w,cx-basket.w/2))}
+c.addEventListener('touchmove',e=>{e.preventDefault();mv(e.touches[0].clientX)},{passive:false});
+c.addEventListener('mousemove',e=>mv(e.clientX));
+</script>
+</body>
+</html>
